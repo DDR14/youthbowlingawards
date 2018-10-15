@@ -10,9 +10,8 @@ if (isset($_POST['submitted'])):
 
     $quantity = setcookie("ybaCart[" . $_POST['cookie_id'] . "][customers_basket_quantity]", $quantity, time() + (60 * 5), "/"); //5 Minutes
 
-    header("location: viewcart.php");
-
     $prompt = 'Quantity Updated';
+
 endif;
 
 if (isset($_POST['delete'])):
@@ -29,8 +28,6 @@ if (isset($_POST['delete'])):
     setcookie("ybaCart[" . $_POST['cookie_id'] . "][footer]", "", time() + (60 * 5), "/"); //5 Minutes
     setcookie("ybaCart[" . $_POST['cookie_id'] . "][upload]", "", time() + (60 * 5), "/"); //5 Minutes
     setcookie("ybaCart[" . $_POST['cookie_id'] . "][cookie_id]", "", time() + (60 * 5), "/"); //5 Minutes
-
-    header("location: viewcart.php");
 
     $prompt = 'Item Deleted';
 endif;
