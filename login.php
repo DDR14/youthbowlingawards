@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 if (isset($_SESSION['user'])) {
     echo('Redirecting to My account');
     ?>
@@ -101,7 +102,7 @@ if (isset($_POST['submit'])) {
         }
         // If the user checked the remember me and exit chrome, automatically show that he/she is already login. Else, auto-logout
         if(isset($_POST['rememberme'])){
-            setcookie("remember_me", "yes", time() + (60 * 2880), "/"); 
+            setcookie("remember_me", encrypt_decrypt('encrypt',"yes"), time() + (60 * 2880), "/"); 
             setcookie("email", encrypt_decrypt('encrypt',$_POST['email']), time() + (60 * 2880), "/");
             setcookie("password", encrypt_decrypt('encrypt',$_POST['password']), time() + (60 * 2880), "/");
         }
@@ -205,12 +206,11 @@ endif;
                                 Or you can also Log-in Your <a href='https://boostpromotions.com' target='_blank'>BoostPromotions.com</a> Account.</p>
                             <div class="form-group">
                                 <label>Email Address:</label>
-                                <input class="form-control"required name="email" required value="<?php
-                                if(isset($_COOKIE['email'])) echo encrypt_decrypt('decrypt',$_COOKIE['email']); ?>">
+                                <input class="form-control"required name="email" required value="">
                             </div>  
                             <div class="form-group">
                                 <label>Password:</label>
-                                <input class="form-control" required type="password" name="password" required value="<?php if(isset($_COOKIE['email'])) echo encrypt_decrypt('decrypt',$_COOKIE['password']); ?>">
+                                <input class="form-control" required type="password" name="password" required value="">
                             </div>                                
                             <?php  
                             
