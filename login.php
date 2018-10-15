@@ -104,17 +104,6 @@ if (isset($_POST['submit'])) {
             setcookie("remember_me", "yes", time() + (60 * 2880), "/"); 
             setcookie("email", encrypt_decrypt('encrypt',$_POST['email']), time() + (60 * 2880), "/");
             setcookie("password", encrypt_decrypt('encrypt',$_POST['password']), time() + (60 * 2880), "/");
-
-            // $plain_txt = "This is my plain text";
-            // echo "Plain Text =" .$plain_txt. "\n";
-            // $encrypted_txt = encrypt_decrypt('encrypt', $plain_txt);
-            // echo "Encrypted Text = " .$encrypted_txt. "\n";
-            // $decrypted_txt = encrypt_decrypt('decrypt', $encrypted_txt);
-            // echo "Decrypted Text =" .$decrypted_txt. "\n";
-            // if ( $plain_txt === $decrypted_txt ) echo "SUCCESS";
-            // else echo "FAILED";
-            // echo "\n";
-
         }
     }
 
