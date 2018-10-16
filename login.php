@@ -57,7 +57,39 @@ if (isset($_POST['submit'])) {
     } else {
         $flash->error("Account does not exist. Please register.");
     }
+
+    //If the user clicked the checkout button
+    if(isset($_COOKIE['check'])){
+        if($_COOKIE['check'] === 'yes')
+        header("location: viewcart.php");
+    }
+    // If the user checked the remember me and exit chrome, automatically show that he/she is already login. Else, auto-logout
+    if(isset($_POST['rememberme'])){
+        setcookie("remember_me", encrypt_decrypt('encrypt',"yes"), time() + (60 * 2880), "/"); 
+        setcookie("email", encrypt_decrypt('encrypt',$_POST['email']), time() + (60 * 2880), "/");
+        setcookie("password", encrypt_decrypt('encrypt',$_POST['password']), time() + (60 * 2880), "/");
+    }
 }
+
+function encrypt_decrypt($action, $string) {
+    $output = false;
+    $encrypt_method = "AES-256-CBC";
+    $secret_key = 'This is my secret key';
+    $secret_iv = 'This is my secret iv';
+    // hash
+    $key = hash('sha256', $secret_key);
+    
+    // iv - encrypt method AES-256-CBC expects 16 bytes - else you will get a warning
+    $iv = substr(hash('sha256', $secret_iv), 0, 16);
+    if ( $action == 'encrypt' ) {
+        $output = openssl_encrypt($string, $encrypt_method, $key, 0, $iv);
+        $output = base64_encode($output);
+    } else if( $action == 'decrypt' ) {
+        $output = openssl_decrypt(base64_decode($string), $encrypt_method, $key, 0, $iv);
+    }
+    return $output;
+}
+
 if (isset($_GET['msg'])):
     switch ($_GET['msg']) {
         case 'password_set':
@@ -145,10 +177,10 @@ endif;
                             }
                             ?>
                             <div>
-                                <input type="checkbox" name="rememberme" value="1" />&nbsp;Keep me signed in.
+                              <input type="checkbox" name="rememberme" value="1"/>&nbsp;<b data-toggle="tooltip" title="Your account will automatically logged in whenever you visit our page.">Keep me signed in.</b>
                             </div><br>
                             <div>
-                                <button type="submit" class="btn btn-primary" name="submit">Log-in</button>
+                                <button type="submit" class="btn btn-primary" <?php if(isset($_COOKIE['remember_me'])){ echo "id=sub";}else{ echo "id=submit";} ?> name="submit">Log-in</button>
                                 <br/><br/>
                                 <a href="forgot_password.php">Forgot password?</a>  
                             </div>
