@@ -1,6 +1,6 @@
 <?php
 session_start();
-if(!isset($_GET['products_id'])):
+if (!isset($_GET['products_id'])):
     echo 'No Product ID specified. Redirecting to homepage.';
     header('location:index.php');
 endif;
@@ -8,132 +8,54 @@ endif;
 include 'includes/db.php';
 include 'includes/flash.php';
 $db = new db();
+
+$products_id = $_GET['products_id'];
+
 if (isset($_POST['addtocart'])):
     $data = $_POST['data'];
 
     if ($data['customers_basket_quantity'] < $_POST['minqty']):
         $flash->error("Please order a minimum of " . $_POST['minqty']);
-    else:  
-        if (isset($_FILES['uploadfile']) && file_exists($_FILES['uploadfile']['tmp_name']) 
-                && is_uploaded_file($_FILES['uploadfile']['tmp_name'])) {
+    else:
+        if (isset($_FILES['uploadfile']) && file_exists($_FILES['uploadfile']['tmp_name']) && is_uploaded_file($_FILES['uploadfile']['tmp_name'])) {
             $folder = "../images/uploads/";
             $data['upload'] = substr(md5(rand(1, 99999)), 0, 6) . "." . $_FILES["uploadfile"]["name"];
             move_uploaded_file($_FILES['uploadfile']['tmp_name'], $folder . $data['upload']);
         }
 
-        $exists = $db->find('first', 'zen_customers_basket', 'products_id = :products_id
+        if (isset($_SESSION['user'])) {
+            $exists = $db->find('first', 'zen_customers_basket', 'products_id = :products_id
         AND customers_id = :customers_id', [
-            'products_id' => $data['products_id'],
-            'customers_id' => $_SESSION['user']['customers_id']
-        ]);
-        if ($exists) {
-            $data['customers_basket_quantity'] += $exists['customers_basket_quantity'];
+                'products_id' => $data['products_id'],
+                'customers_id' => $_SESSION['user']['customers_id']
+            ]);
+            if ($exists) {
+                $data['customers_basket_quantity'] += $exists['customers_basket_quantity'];
 
-            $db->update('zen_customers_basket', $data, 'customers_basket_id = :cbid', ['cbid' => $exists['customers_basket_id']]);
+                $db->update('zen_customers_basket', $data, 'customers_basket_id = :cbid', ['cbid' => $exists['customers_basket_id']]);
+            } else {
+                $data['website'] = 'http://youthbowlingawards.com';
+                $data['customers_id'] = $_SESSION['user']['customers_id'];
+                $data['customers_basket_date_added'] = date('Ymd');
+
+                $db->create('zen_customers_basket', $data);
+            }
         } else {
-            $data['website'] = 'http://youthbowlingawards.com';
-            $data['customers_id'] = $_SESSION['user']['customers_id'];
-            $data['customers_basket_date_added'] = date('Ymd');
-
-            $db->create('zen_customers_basket', $data);
+            //make and add a cookie cart
+            setcookie("ybaCart[" . $data['products_id'] . "][products_id]", $data['products_id'], time() + (86400 * 30), "/");
+            setcookie("ybaCart[" . $data['products_id'] . "][customers_basket_quantity]", $data['customers_basket_quantity'], time() + (86400 * 30), "/");
+            if ($data['require_artwork']) {
+                setcookie("ybaCart[" . $data['products_id'] . "][title]", $data['title'], time() + (86400 * 30), "/");
+                setcookie("ybaCart[" . $data['products_id'] . "][background]", $data['background'], time() + (86400 * 30), "/");
+                setcookie("ybaCart[" . $data['products_id'] . "][footer]", $data['footer'], time() + (86400 * 30), "/");
+                setcookie("ybaCart[" . $data['products_id'] . "][upload]", $data['upload'], time() + (86400 * 30), "/");
+                setcookie("ybaCart[" . $data['products_id'] . "][customs]", $data['customs'], time() + (86400 * 30), "/");
+            }
         }
+
         header('location:viewcart.php');
     endif;
 endif;
-
-if (isset($_POST['add'])):
-    $data = $_POST['data'];
-
-    $cookie_id = 0;
-
-    if(isset($_COOKIE['ybaCart'])){
-        $cookie_id = count($_COOKIE['ybaCart']);
-    }
-
-    // setcookie("ybaCart[" . ($cookie_id + 1) ."][prod]", $data['products_id'], time() + (60 * 5), "/"); //5 Minutes
-
-    $product_id = $_COOKIE["ybaCart[".($cookie_id + 1)."][products_id]"];
-
-    if($data['products_id'] === $products_id)
-    {
-        setcookie("ybaCart[" . ($cookie_id + 1) . "][cookie_id]", $cookie_id + 1, time() + (60 * 5), "/"); //5 Minutes
-
-        setcookie("ybaCart[" . ($cookie_id + 1) . "][products_id]", $data['products_id'], time() + (60 * 5), "/"); //5 Minutes
-        setcookie("ybaCart[" . ($cookie_id + 1) . "][customers_basket_quantity]", $data['customers_basket_quantity'] + $_COOKIE["ybaCart[".($cookie_id)."][customers_basket_quantity]"], time() + (60 * 5), "/"); //5 Minutes
-
-        if(empty($data['title'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) . "][title]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) . "][title]", $data['title'], time() + (60 * 5), "/"); //5 Minutes
-        }
-
-        if(empty($data['background'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][background]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][background]", $data['background'], time() + (60 * 5), "/"); //5 Minutes
-        }
-
-        if(empty($data['footer'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][footer]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][footer]", $data['footer'], time() + (60 * 5), "/"); //5 Minutes
-        }
-
-        if(empty($data['upload'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][upload]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][upload]", $data['upload'], time() + (60 * 5), "/"); //5 Minutes
-        }
-
-        if(empty($data['customs'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][customs]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][customs]", $data['customs'], time() + (60 * 5), "/"); //5 Minutes
-        }
-        
-    }else{
-
-        setcookie("ybaCart[" . ($cookie_id + 1) . "][cookie_id]", $cookie_id + 1, time() + (60 * 5), "/"); //5 Minutes
-
-        setcookie("ybaCart[" . ($cookie_id + 1) . "][products_id]", $data['products_id'], time() + (60 * 5), "/"); //5 Minutes
-        setcookie("ybaCart[" . ($cookie_id + 1) . "][customers_basket_quantity]", $data['customers_basket_quantity'], time() + (60 * 5), "/"); //5 Minutes
-
-        if(empty($data['title'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) . "][title]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) . "][title]", $data['title'], time() + (60 * 5), "/"); //5 Minutes
-        }
-
-        if(empty($data['background'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][background]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][background]", $data['background'], time() + (60 * 5), "/"); //5 Minutes
-        }
-
-        if(empty($data['footer'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][footer]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][footer]", $data['footer'], time() + (60 * 5), "/"); //5 Minutes
-        }
-
-        if(empty($data['upload'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][upload]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][upload]", $data['upload'], time() + (60 * 5), "/"); //5 Minutes
-        }
-
-        if(empty($data['customs'])){
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][customs]", " ", time() + (60 * 5), "/"); //5 Minutes
-        }else{
-            setcookie("ybaCart[" . ($cookie_id + 1) ."][customs]", $data['customs'], time() + (60 * 5), "/"); //5 Minutes
-        }
-        
-    }
-    
-    header('location:viewcart.php');
-    
-endif;
-
 ?>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -166,23 +88,28 @@ endif;
 <body id="productsinfo">
     <div class="container">    <!-- container -->
         <?php
-        include 'includes/header.php';        
-        
-        $products_id = $_GET['products_id'];
+        include 'includes/header.php';
+
         $row = $db->find('first', "zen_products a 
             INNER JOIN zen_products_description b 
             ON a.products_id = b.products_id
             LEFT JOIN zen_customers_basket c
             ON a.products_id = c.products_id
-            AND c.customers_id = $customers_id", 'a.products_id = :products_id', ['products_id' => $products_id]);
+            AND c.customers_id = :cid", 'a.products_id = :pid', [
+            'pid' => $products_id, 'cid' => $customers_id
+        ]);
+
+        if (isset($_COOKIE['ybaCart'][$products_id])) {
+            $row = array_merge($row, $_COOKIE['ybaCart'][$products_id]);
+        }
 
         if (!$row) {
             die('Product doesn`t exist. Click Back to continue.');
         }
-        
-        //for breadcrumb
+
+//for breadcrumb
         $category = $db->find('first', 'zen_categories_description', 'categories_id = :cid', ['cid' => $row['master_categories_id']]);
-        
+
         $products_image = $row['products_image'];
         $products_description = $row['products_description'];
         $products_name = $row['products_name'];
@@ -221,20 +148,20 @@ endif;
                                     <?php endif; ?>
                                 </th>
                             </tr><?php
-                            $result = $db->find('all', 'zen_products_discount_quantity', 'products_id = :products_id', ['products_id' => $products_id]);
-                            $pdqs = [];
-                            $pdqs[] = ['qty' => $minqty, 'price' => $products_price];
-                            foreach ($result as $dis) {
-                                $pdqs[] = ['qty' => $dis['discount_qty'], 'price' => $dis['discount_price']];
-                            }
-                            //display assembled
-                            foreach ($pdqs as $pdq) {
-                                echo "<tr><td>" . $pdq['qty']
-                                . "+</td><td>$"
-                                . number_format($pdq['price'], 2) . "</td></tr>";
-                            }
-                            if (in_array($products_id, [990, 853])):
-                                ?>
+                                    $result = $db->find('all', 'zen_products_discount_quantity', 'products_id = :products_id', ['products_id' => $products_id]);
+                                    $pdqs = [];
+                                    $pdqs[] = ['qty' => $minqty, 'price' => $products_price];
+                                    foreach ($result as $dis) {
+                                        $pdqs[] = ['qty' => $dis['discount_qty'], 'price' => $dis['discount_price']];
+                                    }
+                                    //display assembled
+                                    foreach ($pdqs as $pdq) {
+                                        echo "<tr><td>" . $pdq['qty']
+                                        . "+</td><td>$"
+                                        . number_format($pdq['price'], 2) . "</td></tr>";
+                                    }
+                                    if (in_array($products_id, [990, 853])):
+                                        ?>
                                 <tr>
                                     <th style="text-align:center;" colspan="5">
                                         <strong>Without Tag Order</strong>
@@ -266,36 +193,36 @@ endif;
                         <?php if ($require_artwork): ?>
                             <ul class="list-unstyled">
                                 <li id="<?php
-                                if (isset($customers_id)) {
-                                    echo $customers_id;
-                                } else {
-                                    echo "empty1";
-                                }
-                                ?>"><label>Would you like to change the <b>title</b> for this tag?</label>
+                            if (isset($customers_id)) {
+                                echo $customers_id;
+                            } else {
+                                echo "empty1";
+                            }
+                            ?>"><label>Would you like to change the <b>title</b> for this tag?</label>
                                     <input type="radio" name="button1" id="b1hide" checked /> No
                                     <input type="radio" name="button1" id="b1show"/> Yes
                                     <p id="p1">Tell us what you would like to change the title to, or list the tag number with the title you want.</p>
                                     <textarea class="form-control" type="text" name="data[title]" id="title"><?= $row['title'] ?></textarea>
                                 </li>
                                 <li id="<?php
-                                if (isset($customers_id)) {
-                                    echo $customers_id;
-                                } else {
-                                    echo "empty2";
-                                }
-                                ?>"><label>Would you like to change the <b>background</b> for this tag?</label>
+                            if (isset($customers_id)) {
+                                echo $customers_id;
+                            } else {
+                                echo "empty2";
+                            }
+                            ?>"><label>Would you like to change the <b>background</b> for this tag?</label>
                                     <input type="radio" name="button2" id="b2hide" checked /> No
                                     <input type="radio" name="button2" id="b2show"/> Yes
                                     <p id='p2'>Describe to us what you would like to change the background to, or list the tag number with the background you want.</p>
                                     <textarea class="form-control" type="text" name="data[background]" id="background"><?= $row['background'] ?></textarea>
                                 </li>
                                 <li id="<?php
-                                if (isset($customers_id)) {
-                                    echo $customers_id;
-                                } else {
-                                    echo "empty3";
-                                }
-                                ?>"><label>Would you like to change the <b>image</b> for this tag?</label>
+                            if (isset($customers_id)) {
+                                echo $customers_id;
+                            } else {
+                                echo "empty3";
+                            }
+                            ?>"><label>Would you like to change the <b>image</b> for this tag?</label>
                                     <input type="radio" name="button3" id="b3hide" checked /> No
                                     <input type="radio" name="button3" id="b3show"/> Yes
                                 <li id="choose">
@@ -305,16 +232,15 @@ endif;
                                     <textarea class="form-control" type="text" name="data[customs]" id="image_describe"><?= $row['customs'] ?></textarea>
                                     <p id="p_image">Would you like to upload an image with that?</p>
                                     <input type="file" name="uploadfile" id="image_upload">
-                                    <input type='hidden' name='data[upload]'  value='<?= $row['upload'] ?>'
-                                           />
+                                    <input type='hidden' name='data[upload]'  value='<?= $row['upload'] ?>' />                                    
                                 </li>
                                 <li id="<?php
-                                if (isset($customers_id)) {
-                                    echo $customers_id;
-                                } else {
-                                    echo "empty4";
-                                }
-                                ?>"><label>Do you want a <b>footer</b> for this tag?</label>
+                            if (isset($customers_id)) {
+                                echo $customers_id;
+                            } else {
+                                echo "empty4";
+                            }
+                            ?>"><label>Do you want a <b>footer</b> for this tag?</label>
                                     <input type="radio" name="button4" id="b4hide" checked /> No
                                     <input type="radio" name="button4" id="b4show"/> Yes
                                     <p id="p4"> Describe to us what you would like on the footer, or list the tag number with the footer you want.</p>
@@ -328,31 +254,24 @@ endif;
                         ?>
                         <?php echo "<input type='hidden' name='data[products_id]' value='$products_id'>
                               <input type='hidden' name='minqty' value='$minqty'>"; ?>
-
+                        <input type="hidden" name="data[require_artwork]" value="<?= $row['require_artwork'] ?>" />
                         <br/>
                         <br/>
                         <div class="form-inline">
                             <label id="<?php
-                            if (isset($customers_id)) {
-                                echo $customers_id;
-                            } else {
-                                echo "empty5";
-                            }
-                            ?>">Quantity:</label>
+                        if (isset($customers_id)) {
+                            echo $customers_id;
+                        } else {
+                            echo "empty5";
+                        }
+                        ?>">Quantity:</label>
                             <!--min value from db-->
                             <input type="number" name="data[customers_basket_quantity]" 
                                    min='<?= $minqty; ?>'
                                    placeholder="<?php echo "Minimum Quantity" . " " . $minqty; ?>" 
                                    id="<?= isset($customers_id) ? $customers_id : "empty6" ?>" 
-                                   class="form-control" size="10" value="<?php echo $minqty; ?>" />
-                                   <?php
-                                   if (isset($_SESSION['user'])) {
-                                       echo "<button class='btn btn-success' type='submit' name='addtocart'>Add To Cart</button>";
-                                   } else {
-                                       echo "<button class='btn btn-success' type='submit' name='add'>Add</button>";
-                                
-                            }
-                            ?>
+                                   class="form-control" size="10" value="<?php echo $row['customers_basket_quantity']; ?>" />
+                            <button class='btn btn-success' type='submit' name='addtocart'>Add To Cart</button>
                             <label style="color:red;"><?php echo "Minimum Quantity: " . $minqty; ?></label>
                         </div>
                     </form>

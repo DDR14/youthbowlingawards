@@ -6,37 +6,32 @@ $prompt = '';
 if (isset($_POST['submitted'])):
     $quantity = $_POST['quantity'];
     $products_id = $_POST['products_id'];
-    $db->raw("UPDATE zen_customers_basket SET customers_basket_quantity='$quantity' WHERE products_id='$products_id'");
 
-    $quantity = setcookie("ybaCart[" . $_POST['cookie_id'] . "][customers_basket_quantity]", $quantity, time() + (60 * 5), "/"); //5 Minutes
-
+    if (isset($_SESSION['user'])) {
+        $db->raw("UPDATE zen_customers_basket SET customers_basket_quantity='$quantity' WHERE products_id='$products_id'");
+    } else {
+        setcookie("ybaCart[" . $products_id . "][customers_basket_quantity]", $quantity, time() + (86400 * 30), "/");
+        $_COOKIE['ybaCart'][$products_id]['customers_basket_quantity'] = $quantity; //band aid solution TODO:: look for cookie wrapper
+    }
     $prompt = 'Quantity Updated';
-
 endif;
 
 if (isset($_POST['delete'])):
-    $sql = "DELETE FROM zen_customers_basket WHERE customers_basket_id='customers_basket_id'";
-    $db->delete('zen_customers_basket', 'customers_basket_id=:customers_basket_id', [
-        'customers_basket_id' => $_POST['customers_basket_id']]);
-
-    setcookie("ybaCart[" . $_POST['cookie_id'] . "][products_id]", "", time() + (60 * 5), "/"); //5 Minutes
-    setcookie("ybaCart[" . $_POST['cookie_id'] . "][customers_basket_quantity]", "", time() + (60 * 5), "/"); //5 Minutes
-    setcookie("ybaCart[" . $_POST['cookie_id'] . "][title]", "", time() + (60 * 5), "/"); //5 Minutes
-    
-    setcookie("ybaCart[" . $_POST['cookie_id'] . "][background]", "", time() + (60 * 5), "/"); //5 Minutes
-    setcookie("ybaCart[" . $_POST['cookie_id'] . "][customs]", "", time() + (60 * 5), "/"); //5 Minutes
-    setcookie("ybaCart[" . $_POST['cookie_id'] . "][footer]", "", time() + (60 * 5), "/"); //5 Minutes
-    setcookie("ybaCart[" . $_POST['cookie_id'] . "][upload]", "", time() + (60 * 5), "/"); //5 Minutes
-    setcookie("ybaCart[" . $_POST['cookie_id'] . "][cookie_id]", "", time() + (60 * 5), "/"); //5 Minutes
+    if (isset($_SESSION['user'])) {
+        $db->delete('zen_customers_basket', 'customers_basket_id=:customers_basket_id', [
+            'customers_basket_id' => $_POST['customers_basket_id']]);
+    } else {
+        foreach ($_COOKIE['ybaCart'][$_POST['products_id']] as $k => $v) {
+            setcookie('ybaCart[' . $_POST['products_id'] . '][' . $k . ']', '', time() - 1000, '/');
+        }
+        unset($_COOKIE['ybaCart'][$_POST['products_id']]);
+    }
 
     $prompt = 'Item Deleted';
 endif;
-
-
 ?>
 <html>
     <head>
-
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>YOUTH BOWLING AWARDS</title>
         <link rel="stylesheet" type="text/css" href="_/css/bootstrap.css" media="screen">
@@ -103,17 +98,17 @@ endif;
                                 if (count($cart) > 0) {
                                     // output data of each row
                                     foreach ($cart as $row) {
-
-                                            $price = $row['products_price'];
-                                            $total = number_format($row['customers_basket_quantity'] * $price, 2);
-                                            $qty = ($row['customers_basket_quantity']);
-                                            $products_min = ($row['products_quantity_order_min']);
+                                        $price = $row['products_price'];
+                                        $total = number_format($row['customers_basket_quantity'] * $price, 2);
+                                        $qty = ($row['customers_basket_quantity']);
+                                        $products_min = ($row['products_quantity_order_min']);
+                                        if ($row['require_artwork']) {
                                             $title = $row['title'];
                                             $background = $row['background'];
                                             $footer = $row['footer'];
                                             $upload = $row['upload'];
                                             $customs = $row['customs'];
-
+                                        }
                                         ?>
                                     <form method='post'>
                                         <tr>
@@ -130,12 +125,14 @@ endif;
                                             </td>
                                             <td valign='center'>
                                                 <strong><?= $row["products_name"] ?></strong>
-                                                <br>
-                                                Title: <?= $title ?><br>
-                                                Background: <?= $background ?><br>
-                                                Footer: <?= $footer ?><br>
-                                                Upload: <a href='http://50.87.226.168/images/uploads/<?= $upload ?>' target="_blank"><?= $upload ?></a><br>
-                                                Customs: <?= $customs ?>
+                                                <?php if ($row['require_artwork']): ?>
+                                                    <br>
+                                                    Title: <?= $title ?><br>
+                                                    Background: <?= $background ?><br>
+                                                    Footer: <?= $footer ?><br>
+                                                    Upload: <a href='http://50.87.226.168/images/uploads/<?= $upload ?>' target="_blank"><?= $upload ?></a><br>
+                                                    Customs: <?= $customs ?>
+                                                <?php endif; ?>
                                             </td>
                                             <td valign='center'><?= $row['products_id'] ?>
                                                 <input type='hidden' name='products_id' value='<?= $row['products_id'] ?>' size='5' />
@@ -143,17 +140,18 @@ endif;
                                             <td valign='midlle'>                                      
                                                 <?php
                                                 if ($qty >= $products_min):
-                                                    echo "<input type='text' name='quantity' value='$row[customers_basket_quantity]' size='3'>";
+                                                    echo "<input type='text' name='quantity' value='{$row['customers_basket_quantity']}' size='3'>";
                                                 else:
-                                                    echo "<h6 style='color:red;width:bold;'>" . " * <input type='text' name='quantity' value='$row[customers_basket_quantity]' size='5'>" . "</h6>";
+                                                    echo "<h6 style='color:red;width:bold;'>" . " * <input type='text' name='quantity' value='{$row['customers_basket_quantity']}' size='5'>" . "</h6>";
                                                 endif;
                                                 ?></td>
 
                                             <td valign='center'><?= "$" . number_format($price, 2) ?></td>
                                             <td valign='center'><?= "$" . $total ?></td>
-                                            <br><input type="text" name="cookie_id" value='<?= $row['cookie_id'] ?>' hidden>
                                             <td valign='center'><button name='submitted' type='submit' class='btn btn-primary btn-xs'>update</button><br><br>
-                                                <input type='hidden' name='customers_basket_id' value='<?= $row['customers_basket_id'] ?>'>&nbsp&nbsp&nbsp&nbsp
+                                                <?php if (isset($_SESSION['user'])): ?>
+                                                    <input type='hidden' name='customers_basket_id' value='<?= $row['customers_basket_id'] ?>'/>
+                                                <?php endif; ?>
                                                 <button name='delete' type='submit' onClick='return confirm("you are about to delete an item?");' 
                                                         class='btn btn-default btn-xs'><img style ='height:20px;' src='images/trash.png'></button>                            
                                         </tr>
@@ -161,7 +159,6 @@ endif;
                                 }
                             } else {
                                 echo "Your Shopping Cart is empty.";
-                                
                             }
                             ?>                                 
                             </tbody>
@@ -194,7 +191,7 @@ endif;
                                             <br/>
                                             <img src="images/youthbowlingawards.png" alt="youthbowlingawards" height="150" >
                                             <img src="images/right-double-chevron.png" alt="youthbowlingawards" >
-                                            <img src="https://boostpromotions.com/img/logo.png" alt="boostpromotions" height="80">
+                                            <img src="https://boostpromotions.com/img/logo.png" alt="boostpromotions" height="80" >
                                         </div>
                                         <div class="modal-footer">
                                             <form method='post' id='submit_this' name='boost_connect' action='https://boostpromotions.com/shoppingCart/login_as_customer'>
@@ -207,39 +204,11 @@ endif;
                                     </div>
                                 </div>
                             </div>
-                        <?php  ?>
-
-                        <?php
-                        elseif (!isset($_SESSION['user'])):
-                            ?>
-                            <button class='pull-right btn btn-success btn-md' type='submit' name='checkout1' data-toggle="modal" data-target="#myModal">
-                                <span class="glyphicon glyphicon-credit-card"></span>
-                                CHECKOUT</button>
-
-                            <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-                                <div class="modal-dialog" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header alert-success">
-                                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                                            <h4 class="modal-title"><span class="glyphicon glyphicon-credit-card"></span> Checkout</h4>
-                                        </div>
-                                        <div class="modal-body text-center">
-                                            To proceed on the checkout process, please login your account first.
-                                        </div>
-                                        <div class="modal-footer">
-                                            <form method='post' id='submit_this' name='boost_connect' action='login.php'>
-                                                <input type='hidden' name='token' value='<?= $token ?>'>
-                                                <input type='hidden' name='email_addr' value='<?= $_SESSION['user']['customers_email_address'] ?>'>
-                                                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-primary" name="go">Go</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endif; 
-                        ?>
-                        
+                        <?php else: ?>  
+                            <a href="login.php" ><button class='pull-right btn btn-success btn-md' type='submit' name='checkout' data-toggle="modal" data-target="#myModal">
+                                    <span class="glyphicon glyphicon-credit-card"></span>
+                                    CHECKOUT</button></a>
+                        <?php endif; ?>     
                     </div>
                 </div> <!-- col-sm10 -->      
             </div> <!-- end of content -->
@@ -271,9 +240,3 @@ endif;
         </script>
     </body>
 </html>
-
-
-
-
-
-
